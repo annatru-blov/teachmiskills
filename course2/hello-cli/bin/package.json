@@ -1,0 +1,19 @@
+{
+  "name": "hello-cli",
+  "version": "1.0.0",
+  "description": "Учебное CLI",
+  "main": "index.js",
+  "bin": {
+    "hello": "bin/cli.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node bin/cli.js",
+    "dev": "node bin/cli.js --help",
+    "lint": "npm link",
+    "unlink": "npm unlink -g hello-cli"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
