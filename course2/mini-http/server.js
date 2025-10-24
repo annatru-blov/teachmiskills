@@ -35,7 +35,7 @@ function createSend(req, res, start) {
 }
 
 const readBody = (req) => {
-    new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
         let data = '';
         req.on('data', (chunk) => {
             data += chunk;
@@ -68,12 +68,19 @@ const server = http.createServer(async (req, res) => {
             return send(200, `<html><head><title>Node js</title></head><body><h1>Node js</h1></body></html>`);
         }
         if (req.method === 'GET' && pathname === '/about') {
-            return send(200, `<html><head><title>About</head><body><h1>About</h1></body></html>`);
+            return send(200, `<html><head><title>About</title></head><body><h1>About</h1></body></html>`);
         }
         if (req.method === 'GET' && pathname === '/time') {
             return send(200, {
                 now: new Date().toISOString(),
                 tz: Intl.DateTimeFormat().resolvedOptions().timeZone
+            });
+        }
+        if (req.method === 'GET' && pathname === `/api/random`) {
+            const min = parseInt(searchParams.get('min')) || 0;
+            const max = parseInt(searchParams.get('max')) || 100;
+            return send(200, {
+                random: Math.floor(Math.random() * (max - min + 1) + min)
             });
         }
         if (req.method === 'POST' && pathname === '/echo') {

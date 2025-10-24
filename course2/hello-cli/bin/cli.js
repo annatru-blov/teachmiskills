@@ -1,11 +1,11 @@
 const fs = require('fs');
 const path = require('path');
-const readline = require('readline');
+const readline = require('readline'); //взаимодействие с пользователями через консоль
 const os = require('os');
 const pkg = require('../package.json');
 
 const argv = process.argv.slice(2);
-const [command, ...rest] = argv;
+const [command, subcommand, ...rest] = argv;
 
 const CONFIG_PATH = path.join(os.homedir(), '.hello-cli.json');
 
@@ -34,11 +34,15 @@ function printHelp() {
     console.log('add [a b c ...] Сложить числа');
     console.log('now  Показать текущую дату и время');
     console.log('version Показать номер версии');
+    console.log('config  get: получить конфиг, set: установить конфиг set');
+
     //console.log('\n Общие опции');
 }
 
 function parseFlags(args) {
-    const flags = {};
+    const flags = {
+        _: []
+    };
 
     for (let i = 0; i < args.length; i++) {
         const a = args[i];
@@ -46,15 +50,15 @@ function parseFlags(args) {
         if (a === '-n' || a === '--name') {
             flags.name = args[i + 1];
             i++;
-        } else if (a.startWith('--name')) {
-            flags.name = a.slice('=')[1];
-        } else if (a.atartWith('-')) {
-            if (!flags.unknow) {
+        } else if (a.startsWith('--name=')) {
+            flags.name = a.split('=')[1];
+        } else if (a.startsWith('-')) {
+            if (!flags.unknown) {
                 flags.unknown = [];
-            } else {
-                flags.unknown.push(a);
             }
-
+            flags.unknown.push(a);
+        } else {
+            flags._.push(a);
         }
     }
 
@@ -120,7 +124,7 @@ async function main() {
         case 'greet': {
             const name = flags.name || ctg.name || 'Пользователь';
             console.log(`Привет, ${name}!`);
-            if (!cfg.name && !flags.name) {
+            if (!ctg.name && !flags.name) {
                 console.log('Подсказка: сохраните имя командой init ');
             }
             break;
@@ -142,6 +146,30 @@ async function main() {
 
             const sum = values.reduce((a, b) => a + b);
             console.log(`Результат: ${sum}`);
+            break;
+        }
+
+        case 'config': {
+
+            if (subcommand === 'get') {
+                const surname = ctg.surname || 'Фамилия не задана';
+                console.log(surname);
+                if (!ctg.surname) {
+                    console.log('Подсказка: сохраните фамилию командой congig set ');
+                }
+            } else if (subcommand === 'set') {
+                const surname = await prompt('Введите фамилию');
+                const next = {
+                    ...ctg,
+                    surname
+                }
+                saveConfig(next);
+                console.log(`Готово Конфиг сохранен в ${CONFIG_PATH}`);
+            } else {
+                console.error(`Неизвестная подкоманда ${subcommand}`);
+                printHelp();
+                process.exitCode = 1;
+            }
             break;
         }
 
