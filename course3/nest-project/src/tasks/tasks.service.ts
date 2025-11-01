@@ -1,9 +1,4 @@
-import {
-  forwardRef,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Task } from './task.entity';
 import { randomUUID } from 'crypto';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -12,10 +7,7 @@ import { AuthService } from 'src/auth/auth.service';
 
 @Injectable()
 export class TasksService {
-  constructor(
-    @Inject(forwardRef(() => AuthService))
-    private readonly auth: AuthService,
-  ) {}
+  constructor(private readonly auth: AuthService) {}
 
   private tasks: Task[] = [];
 
@@ -33,13 +25,13 @@ export class TasksService {
     return task;
   }
 
-  create(dto: CreateTaskDto, authHeader?: string): Task {
-    const ownerId = this.auth.getUserIdOrThrow('', authHeader);
+  create(dto: CreateTaskDto, userId: string): Task {
+    this.auth.issueToken(userId);
     const task: Task = {
       id: randomUUID(),
       title: dto.title,
       completed: dto.completed ?? false,
-      ownerId,
+      ownerId: userId,
     };
 
     this.tasks.push(task);
@@ -47,12 +39,20 @@ export class TasksService {
     return task;
   }
 
-  async update(
-    id: string,
-    dto: UpdateTaskDto,
-    authHeader?: string,
-  ): Promise<Task> {
-    await this.auth.assertsCanEditTask(id, authHeader);
+  private async getOwnerTask(id: string, token: string): Promise<Task> {
+    if (!token) {
+      throw new Error('access denied');
+    }
+    const ownerId = this.auth.verifyToken(token);
+    const task = await this.findOne(id);
+    if (task.ownerId !== ownerId) {
+      throw new Error('access denied');
+    }
+    return task;
+  }
+
+  async update(id: string, dto: UpdateTaskDto, token: string): Promise<Task> {
+    await this.getOwnerTask(id, token);
     const task = await this.findOne(id);
 
     if (dto.title !== undefined) {
@@ -66,8 +66,8 @@ export class TasksService {
     return task;
   }
 
-  async remove(id: string, authHeader?: string): Promise<void> {
-    await this.auth.assertsCanEditTask(id, authHeader);
+  async remove(id: string, token: string): Promise<void> {
+    await this.getOwnerTask(id, token);
     const idx = this.tasks.findIndex((task) => task.id === id);
 
     if (idx === -1) {

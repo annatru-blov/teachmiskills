@@ -22,7 +22,7 @@ export class TasksController {
   }
 
   @Post()
-  create(@Body() dto: CreateTaskDto, @Headers('authorization') auth?: string) {
+  create(@Body() dto: CreateTaskDto, @Headers('authorization') auth: string) {
     return this.tasks.create(dto, auth);
   }
 
@@ -35,7 +35,7 @@ export class TasksController {
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateTaskDto,
-    @Headers('Authorization') auth?: string,
+    @Headers('authorization') auth: string,
   ) {
     return this.tasks.update(id, dto, auth);
   }
@@ -43,7 +43,7 @@ export class TasksController {
   @Delete(':id')
   remove(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Headers('Authorization') auth?: string,
+    @Headers('authorization') auth: string,
   ) {
     this.tasks.remove(id, auth);
     return { success: true, id };

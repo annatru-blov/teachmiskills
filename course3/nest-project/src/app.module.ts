@@ -6,7 +6,10 @@ import { LoggerMiddleware } from './common/logger.middleware';
 import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [TasksModule, AuthModule],
+  imports: [
+    TasksModule,
+    AuthModule.forRoot({ secret: 'secret', tokenPrefix: 'Bearer' }),
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
