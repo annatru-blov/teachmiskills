@@ -23,6 +23,7 @@ export class AuthModule {
           provide: AUTH_OPTIONS,
           useValue: options,
         },
+        AuthService,
       ],
       exports: [AuthService],
     };
