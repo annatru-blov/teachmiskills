@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Headers,
+  HttpCode,
 } from '@nestjs/common';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -22,6 +23,7 @@ export class TasksController {
   }
 
   @Post()
+  @HttpCode(201)
   create(@Body() dto: CreateTaskDto, @Headers('authorization') auth: string) {
     return this.tasks.create(dto, auth);
   }
@@ -41,11 +43,11 @@ export class TasksController {
   }
 
   @Delete(':id')
+  @HttpCode(204)
   remove(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Headers('authorization') auth: string,
   ) {
     this.tasks.remove(id, auth);
-    return { success: true, id };
   }
 }

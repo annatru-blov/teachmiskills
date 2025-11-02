@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Task } from './task.entity';
 import { randomUUID } from 'crypto';
 import { CreateTaskDto } from './dto/create-task.dto';
@@ -41,12 +46,13 @@ export class TasksService {
 
   private async getOwnerTask(id: string, token: string): Promise<Task> {
     if (!token) {
-      throw new Error('access denied');
+      throw new UnauthorizedException('missing token');
     }
     const ownerId = this.auth.verifyToken(token);
     const task = await this.findOne(id);
+
     if (task.ownerId !== ownerId) {
-      throw new Error('access denied');
+      throw new ForbiddenException('access denied');
     }
     return task;
   }
