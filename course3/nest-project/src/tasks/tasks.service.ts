@@ -2,26 +2,59 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { Task } from './task.entity';
-import { randomUUID } from 'crypto';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
-import { AuthService } from 'src/auth/auth.service';
+import { AuthService } from '../auth/auth.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    @InjectRepository(Task)
+    private readonly taskRepository: Repository<Task>,
+    private readonly dataSource: DataSource,
+  ) {}
 
-  private tasks: Task[] = [];
+  // async findAll(): Promise<Task[]> {
+  //   return this.taskRepository.find({
+  //     order: { createAt: 'DESC' },
+  //   });
+  // }
+  async findAll(
+    page: number,
+    limit: number,
+    completed?: boolean,
+    title?: string,
+  ): Promise<{ data: Task[]; total: number }> {
+    const query = this.taskRepository.createQueryBuilder('task');
 
-  findAll(): Task[] {
-    return this.tasks;
+    if (completed !== undefined) {
+      query.andWhere('task.completed = :completed', { completed });
+    }
+
+    if (title) {
+      query.andWhere('task.title = :title', { title });
+    }
+
+    const total = await query.getCount();
+
+    query
+      .orderBy('task.createAt', 'DESC')
+      .take(limit)
+      .skip((page - 1) * limit);
+
+    return {
+      data: await query.getMany(),
+      total,
+    };
   }
-  // eslint-disable-next-line @typescript-eslint/require-await
+
   async findOne(id: string): Promise<Task> {
-    const task = this.tasks.find((task) => task.id === id);
+    const task = await this.taskRepository.findOne({ where: { id } });
 
     if (!task) {
       throw new NotFoundException(`Task with ID "${id}" not found`);
@@ -30,56 +63,102 @@ export class TasksService {
     return task;
   }
 
-  create(dto: CreateTaskDto, userId: string): Task {
-    this.auth.issueToken(userId);
-    const task: Task = {
-      id: randomUUID(),
+  async create(dto: CreateTaskDto): Promise<Task> {
+    // this.auth.issueToken(userId);
+
+    const task = this.taskRepository.create({
       title: dto.title,
       completed: dto.completed ?? false,
-      ownerId: userId,
-    };
+      ownerId: dto.userId,
+    });
 
-    this.tasks.push(task);
+    const saveTask = await this.taskRepository.save(task);
 
-    return task;
+    return saveTask;
   }
 
-  private async getOwnerTask(id: string, token: string): Promise<Task> {
-    if (!token) {
-      throw new UnauthorizedException('missing token');
-    }
-    const ownerId = this.auth.verifyToken(token);
+  private async getOwnerTask(id: string): Promise<Task> {
+    // if (!token) {
+    //   throw new UnauthorizedException('missing token');
+    // }
+    // const ownerId = this.auth.verifyToken(token);
     const task = await this.findOne(id);
 
-    if (task.ownerId !== ownerId) {
-      throw new ForbiddenException('access denied');
-    }
+    // if (task.ownerId !== ownerId) {
+    //   throw new ForbiddenException('access denied');
+    // }
     return task;
   }
 
-  async update(id: string, dto: UpdateTaskDto, token: string): Promise<Task> {
-    await this.getOwnerTask(id, token);
-    const task = await this.findOne(id);
+  async update(id: string, dto: UpdateTaskDto): Promise<Task> {
+    const task = await this.getOwnerTask(id);
 
-    if (dto.title !== undefined) {
-      task.title = dto.title;
-    }
+    this.taskRepository.merge(task, {
+      title: dto.title ?? task.title,
+      completed: dto.completed ?? task.completed,
+    });
 
-    if (dto.completed !== undefined) {
-      task.completed = dto.completed;
+    return this.taskRepository.save(task);
+  }
+
+  async remove(id: string): Promise<void> {
+    const task = await this.getOwnerTask(id);
+
+    await this.taskRepository.softDelete(task.id);
+  }
+
+  async complete(id: string) {
+    const task = await this.getOwnerTask(id);
+
+    if (!task.completed) {
+      task.completed = true;
+      await this.taskRepository.save(task);
     }
 
     return task;
   }
 
-  async remove(id: string, token: string): Promise<void> {
-    await this.getOwnerTask(id, token);
-    const idx = this.tasks.findIndex((task) => task.id === id);
+  async completeMany(ids: string[]) {
+    const runner = this.dataSource.createQueryRunner();
 
-    if (idx === -1) {
+    await runner.connect();
+    await runner.startTransaction();
+
+    try {
+      const tasks = await runner.manager.find(Task, {
+        where: { id: In(ids) },
+        withDeleted: false,
+      });
+      if (tasks.length !== ids.length) {
+        throw new ForbiddenException('some tasks are not found');
+      }
+
+      await runner.manager
+        .createQueryBuilder()
+        .update(Task)
+        .set({ completed: true })
+        .whereInIds(ids)
+        .execute();
+      await runner.commitTransaction();
+    } catch (e) {
+      await runner.rollbackTransaction();
+      throw e;
+    } finally {
+      await runner.release();
+    }
+  }
+
+  async restore(id: string) {
+    const task = await this.taskRepository.findOne({
+      where: { id },
+      withDeleted: true,
+    });
+
+    if (!task) {
       throw new NotFoundException(`Task with ID "${id}" not found`);
     }
 
-    this.tasks.splice(idx, 1);
+    await this.taskRepository.restore(task.id);
+    return task;
   }
 }
