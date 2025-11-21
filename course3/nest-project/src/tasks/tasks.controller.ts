@@ -13,15 +13,27 @@ import {
   ParseIntPipe,
   Query,
   ParseBoolPipe,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TasksService } from './tasks.service';
 import { completeManyDto } from './dto/complete-many.dto';
+import { CurrentUser } from '../common/current-user.decorator';
+import { ApiKeyGuard } from '../common/quards/api-key.quard';
+import { OwnerGuard } from '../common/quards/owner.guard';
+import { JwtGuard } from '../common/quards/jwt.guard';
 
 @Controller('tasks')
 export class TasksController {
   constructor(private readonly tasks: TasksService) {}
+
+  // @Get('whoami')
+  // async getUser(@CurrentUser() user) {
+  //   return user ?? { message: 'no user' };
+  // }
+
   @Get()
   async findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
@@ -59,6 +71,7 @@ export class TasksController {
   }
 
   @Patch(':id')
+  @UseGuards(JwtGuard, OwnerGuard)
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateTaskDto,
@@ -68,6 +81,7 @@ export class TasksController {
   }
 
   @Delete(':id')
+  @UseGuards(ApiKeyGuard)
   @HttpCode(204)
   remove(
     @Param('id', new ParseUUIDPipe()) id: string,
