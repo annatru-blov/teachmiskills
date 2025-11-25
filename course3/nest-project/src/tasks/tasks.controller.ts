@@ -13,19 +13,23 @@ import {
   ParseIntPipe,
   Query,
   ParseBoolPipe,
-  Req,
   UseGuards,
+  UsePipes,
+  UseInterceptors,
 } from '@nestjs/common';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { TasksService } from './tasks.service';
 import { completeManyDto } from './dto/complete-many.dto';
-import { CurrentUser } from '../common/current-user.decorator';
 import { ApiKeyGuard } from '../common/quards/api-key.quard';
 import { OwnerGuard } from '../common/quards/owner.guard';
 import { JwtGuard } from '../common/quards/jwt.guard';
+import { NormalizeTaskPipe } from '../common/pipes/normalize-task.pipe';
+import { LoggerInterceptor } from '../common/interceptors/logger.interceptors';
+import { ResponceTransformInterceptor } from '../common/interceptors/responce-transform.interceptor';
 
 @Controller('tasks')
+@UseInterceptors(LoggerInterceptor, ResponceTransformInterceptor)
 export class TasksController {
   constructor(private readonly tasks: TasksService) {}
 
@@ -60,6 +64,7 @@ export class TasksController {
 
   @Post()
   @HttpCode(201)
+  @UsePipes(NormalizeTaskPipe)
   create(@Body() dto: CreateTaskDto) {
     return this.tasks.create(dto);
   }
