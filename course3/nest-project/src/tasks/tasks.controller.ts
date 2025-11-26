@@ -7,7 +7,6 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
-  Headers,
   HttpCode,
   DefaultValuePipe,
   ParseIntPipe,
@@ -27,6 +26,8 @@ import { JwtGuard } from '../common/quards/jwt.guard';
 import { NormalizeTaskPipe } from '../common/pipes/normalize-task.pipe';
 import { LoggerInterceptor } from '../common/interceptors/logger.interceptors';
 import { ResponceTransformInterceptor } from '../common/interceptors/responce-transform.interceptor';
+import { TaskDeadlinePipe } from '../common/pipes/task-deadline.pipe';
+import { DiffInterceptor } from '../common/interceptors/diff.interceptor';
 
 @Controller('tasks')
 @UseInterceptors(LoggerInterceptor, ResponceTransformInterceptor)
@@ -64,7 +65,7 @@ export class TasksController {
 
   @Post()
   @HttpCode(201)
-  @UsePipes(NormalizeTaskPipe)
+  @UsePipes(NormalizeTaskPipe, TaskDeadlinePipe)
   create(@Body() dto: CreateTaskDto) {
     return this.tasks.create(dto);
   }
@@ -77,6 +78,7 @@ export class TasksController {
 
   @Patch(':id')
   @UseGuards(JwtGuard, OwnerGuard)
+  @UseInterceptors(DiffInterceptor)
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateTaskDto,
