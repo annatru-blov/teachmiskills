@@ -8,6 +8,7 @@ import dbConfig from './config/db.config';
 import { ConfigService, ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserContextMiddleware } from './common/middleware/user-context.middleware';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { UserContextMiddleware } from './common/middleware/user-context.middlewa
     }),
     TasksModule,
     AuthModule.forRoot({ secret: 'secret', tokenPrefix: 'Bearer' }),
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
